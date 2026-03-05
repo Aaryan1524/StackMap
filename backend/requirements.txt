@@ -1,0 +1,16 @@
+# API layer
+fastapi
+uvicorn[standard]
+neo4j
+
+# RepoParser / RAG
+langchain
+langchain-community
+langchain-openai
+langchain-text-splitters
+pinecone
+langchain-pinecone
+openai
+tiktoken
+python-dotenv
+gitpython
