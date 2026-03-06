@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { GraphView } from './components/GraphView';
 import { ChatPanel } from './components/ChatPanel';
@@ -15,8 +16,10 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isQuerying, setIsQuerying] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [showChat, setShowChat] = useState(true);
+  const [graphLimit, setGraphLimit] = useState(2000);
 
-  /* ── Ingest ── */
   const handleIngest = async (url: string) => {
     setIsIngesting(true);
     setError(null);
@@ -40,25 +43,25 @@ export default function App() {
     }
   };
 
-  /* ── Load Graph ── */
-  const loadGraph = async () => {
+  const loadGraph = async (limit = graphLimit) => {
     try {
-      const res = await fetch(`${API}/graph`);
+      const res = await fetch(`${API}/graph?limit=${limit}`);
       if (!res.ok) return;
       const data: GraphData = await res.json();
       setGraphData(data);
-    } catch (err) {
-      console.error('Graph fetch failed:', err);
-    }
+    } catch { /* silent */ }
   };
 
-  /* ── Select Repo ── */
   const handleSelectRepo = async (repo: string) => {
     setActiveRepo(repo);
     await loadGraph();
   };
 
-  /* ── Query ── */
+  const handleLimitChange = async (limit: number) => {
+    setGraphLimit(limit);
+    await loadGraph(limit);
+  };
+
   const handleQuery = async (question: string) => {
     setMessages(prev => [...prev, { role: 'user', content: question }]);
     setIsQuerying(true);
@@ -75,7 +78,7 @@ export default function App() {
         content: data.answer,
         sources: data.sources,
       }]);
-    } catch (err) {
+    } catch {
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: '⚠ Failed to get a response. Is the backend running?',
@@ -110,19 +113,66 @@ export default function App() {
 
       {/* Main 3-panel layout */}
       <div style={styles.main}>
-        <Sidebar
-          repos={repos}
-          activeRepo={activeRepo}
-          isIngesting={isIngesting}
-          onIngest={handleIngest}
-          onSelectRepo={handleSelectRepo}
-        />
-        <GraphView graphData={graphData} />
-        <ChatPanel
-          messages={messages}
-          isQuerying={isQuerying}
-          onQuery={handleQuery}
-        />
+        {/* Sidebar with slide transition */}
+        <div style={{
+          width: showSidebar ? 260 : 0,
+          height: '100%',
+          overflow: 'hidden',
+          transition: 'width 0.25s ease',
+          flexShrink: 0,
+        }}>
+          <div style={{ width: 260, height: '100%' }}>
+            <Sidebar
+              repos={repos}
+              activeRepo={activeRepo}
+              isIngesting={isIngesting}
+              onIngest={handleIngest}
+              onSelectRepo={handleSelectRepo}
+              graphLimit={graphLimit}
+              onLimitChange={handleLimitChange}
+            />
+          </div>
+        </div>
+
+        {/* Graph + toggle buttons */}
+        <div style={{ flex: 1, height: '100%', position: 'relative', overflow: 'hidden' }}>
+          <GraphView graphData={graphData} />
+
+          {/* Left toggle */}
+          <button
+            onClick={() => setShowSidebar(v => !v)}
+            style={{ ...styles.toggleBtn, left: 8 }}
+            title={showSidebar ? 'Hide sidebar' : 'Show sidebar'}
+          >
+            {showSidebar ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+          </button>
+
+          {/* Right toggle */}
+          <button
+            onClick={() => setShowChat(v => !v)}
+            style={{ ...styles.toggleBtn, right: 8 }}
+            title={showChat ? 'Hide chat' : 'Show chat'}
+          >
+            {showChat ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
+        </div>
+
+        {/* Chat panel with slide transition */}
+        <div style={{
+          width: showChat ? 340 : 0,
+          height: '100%',
+          overflow: 'hidden',
+          transition: 'width 0.25s ease',
+          flexShrink: 0,
+        }}>
+          <div style={{ width: 340, height: '100%' }}>
+            <ChatPanel
+              messages={messages}
+              isQuerying={isQuerying}
+              onQuery={handleQuery}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -143,7 +193,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 8,
     padding: '0 16px',
     borderBottom: '1px solid var(--border)',
-    background: 'rgba(9,13,24,0.9)',
+    background: 'var(--bg-panel)',
     flexShrink: 0,
   },
   topbarDot: {
@@ -168,5 +218,23 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
     display: 'flex',
     overflow: 'hidden',
+  },
+  toggleBtn: {
+    position: 'absolute',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    zIndex: 20,
+    width: 24,
+    height: 48,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'rgba(13,13,13,0.9)',
+    border: '1px solid rgba(0,210,255,0.2)',
+    borderRadius: 6,
+    color: 'var(--cyan)',
+    cursor: 'pointer',
+    backdropFilter: 'blur(12px)',
+    transition: 'border-color 0.15s, background 0.15s',
   },
 };

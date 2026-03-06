@@ -55,9 +55,9 @@ def list_repos():
 
 
 @app.get("/graph")
-def graph():
+def graph(limit: int = 2000):
     try:
-        return get_graph_data()
+        return get_graph_data(limit=limit)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

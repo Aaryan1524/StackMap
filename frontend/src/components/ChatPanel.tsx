@@ -45,7 +45,6 @@ export function ChatPanel({ messages, isQuerying, onQuery }: ChatPanelProps) {
 
         {messages.map((msg, i) => (
           <div key={i} className="fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {/* Role badge */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -63,7 +62,6 @@ export function ChatPanel({ messages, isQuerying, onQuery }: ChatPanelProps) {
               {msg.role === 'user' && <User size={12} color="var(--text-3)" />}
             </div>
 
-            {/* Bubble */}
             <div style={{
               ...styles.bubble,
               alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
@@ -80,7 +78,6 @@ export function ChatPanel({ messages, isQuerying, onQuery }: ChatPanelProps) {
               </p>
             </div>
 
-            {/* Sources */}
             {msg.sources && msg.sources.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, paddingLeft: 2 }}>
                 {msg.sources.map(s => {
@@ -97,7 +94,6 @@ export function ChatPanel({ messages, isQuerying, onQuery }: ChatPanelProps) {
           </div>
         ))}
 
-        {/* Typing indicator */}
         {isQuerying && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 2 }}>
             <Loader2 size={12} color="var(--cyan)" style={{ animation: 'spin 1s linear infinite' }} />

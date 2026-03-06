@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import { GitBranch, Loader2, Search, Hexagon, ChevronRight } from 'lucide-react';
+import { GitBranch, Loader2, Plus, ChevronRight, Circle, Hexagon } from 'lucide-react';
+
+const LIMIT_OPTIONS = [500, 1000, 2000, 5000, 10000];
+const PRO_CODE = 'AaGajula152430';
 
 interface SidebarProps {
   repos: string[];
@@ -7,10 +10,28 @@ interface SidebarProps {
   isIngesting: boolean;
   onIngest: (url: string) => void;
   onSelectRepo: (repo: string) => void;
+  graphLimit: number;
+  onLimitChange: (limit: number) => void;
 }
 
-export function Sidebar({ repos, activeRepo, isIngesting, onIngest, onSelectRepo }: SidebarProps) {
+export function Sidebar({ repos, activeRepo, isIngesting, onIngest, onSelectRepo, graphLimit, onLimitChange }: SidebarProps) {
   const [url, setUrl] = useState('');
+  const [proUnlocked, setProUnlocked] = useState(false);
+  const [showCodeInput, setShowCodeInput] = useState(false);
+  const [codeInput, setCodeInput] = useState('');
+  const [codeError, setCodeError] = useState(false);
+
+  const handleProUnlock = () => {
+    if (codeInput === PRO_CODE) {
+      setProUnlocked(true);
+      setShowCodeInput(false);
+      setCodeInput('');
+      setCodeError(false);
+      onLimitChange(10000);
+    } else {
+      setCodeError(true);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,24 +58,20 @@ export function Sidebar({ repos, activeRepo, isIngesting, onIngest, onSelectRepo
         </div>
       </div>
 
-      {/* ── Divider ── */}
       <div style={styles.divider} />
 
       {/* ── Ingest Form ── */}
       <div style={styles.section}>
         <div className="label" style={{ marginBottom: 10 }}>Analyze Repository</div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={styles.inputWrapper}>
-            <Search size={12} color="var(--text-3)" style={{ flexShrink: 0 }} />
-            <input
-              type="text"
-              placeholder="https://github.com/user/repo"
-              value={url}
-              onChange={e => setUrl(e.target.value)}
-              style={styles.input}
-              className="mono"
-            />
-          </div>
+          <input
+            type="text"
+            placeholder="https://github.com/user/repo"
+            value={url}
+            onChange={e => setUrl(e.target.value)}
+            style={styles.input}
+            className="mono"
+          />
           <button
             type="submit"
             disabled={isIngesting || !url.trim()}
@@ -65,12 +82,9 @@ export function Sidebar({ repos, activeRepo, isIngesting, onIngest, onSelectRepo
             }}
           >
             {isIngesting ? (
-              <>
-                <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
-                ANALYZING…
-              </>
+              <><Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> ANALYZING…</>
             ) : (
-              'ANALYZE'
+              <><Plus size={14} /> ANALYZE</>
             )}
           </button>
         </form>
@@ -78,15 +92,81 @@ export function Sidebar({ repos, activeRepo, isIngesting, onIngest, onSelectRepo
 
       <div style={styles.divider} />
 
+      {/* ── Graph Limit ── */}
+      <div style={styles.section}>
+        <div className="label" style={{ marginBottom: 8 }}>Node limit</div>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          {LIMIT_OPTIONS.map(opt => {
+            const isPro = opt === 10000;
+            const locked = isPro && !proUnlocked;
+            return (
+              <button
+                key={opt}
+                onClick={() => {
+                  if (locked) { setShowCodeInput(true); setCodeError(false); }
+                  else onLimitChange(opt);
+                }}
+                title={locked ? 'Requires access code' : undefined}
+                style={{
+                  padding: '4px 8px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid',
+                  borderColor: graphLimit === opt
+                    ? 'rgba(0,210,255,0.5)'
+                    : locked ? 'rgba(245,158,11,0.3)' : 'var(--border)',
+                  background: graphLimit === opt
+                    ? 'rgba(0,210,255,0.1)'
+                    : locked ? 'rgba(245,158,11,0.05)' : 'transparent',
+                  color: graphLimit === opt ? 'var(--cyan)' : locked ? 'var(--amber)' : 'var(--text-3)',
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 10,
+                  cursor: 'pointer',
+                }}
+              >
+                {opt >= 1000 ? `${opt / 1000}k` : opt}{locked ? ' 🔒' : ''}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Code unlock input */}
+        {showCodeInput && (
+          <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <input
+              autoFocus
+              type="password"
+              placeholder="Enter access code…"
+              value={codeInput}
+              onChange={e => { setCodeInput(e.target.value); setCodeError(false); }}
+              onKeyDown={e => { if (e.key === 'Enter') handleProUnlock(); if (e.key === 'Escape') { setShowCodeInput(false); setCodeInput(''); } }}
+              style={{ ...styles.input, borderColor: codeError ? 'rgba(239,68,68,0.5)' : 'var(--border)' }}
+              className="mono"
+            />
+            {codeError && (
+              <span className="mono" style={{ fontSize: 9, color: '#ef4444' }}>Invalid code</span>
+            )}
+            <div style={{ display: 'flex', gap: 5 }}>
+              <button onClick={handleProUnlock} style={{ ...styles.smallBtn, borderColor: 'rgba(0,210,255,0.3)', color: 'var(--cyan)' }}>Unlock</button>
+              <button onClick={() => { setShowCodeInput(false); setCodeInput(''); setCodeError(false); }} style={{ ...styles.smallBtn }}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {graphLimit >= 5000 && (
+          <div className="mono" style={{ fontSize: 9, color: 'var(--amber)', marginTop: 6 }}>
+            ⚠ High limits may slow the browser
+          </div>
+        )}
+      </div>
+
+      <div style={styles.divider} />
+
       {/* ── Repos List ── */}
       <div style={{ ...styles.section, flex: 1, overflowY: 'auto' }}>
         <div className="label" style={{ marginBottom: 10 }}>
-          Analyzed&nbsp;
-          <span style={{ color: 'var(--cyan)', fontVariantNumeric: 'tabular-nums' }}>
-            [{repos.length}]
-          </span>
+          ANALYZED&nbsp;
+          <span style={{ color: 'var(--cyan)' }}>[{repos.length}]</span>
         </div>
-
         {repos.length === 0 ? (
           <div style={styles.emptyState}>
             <GitBranch size={22} color="var(--text-3)" style={{ marginBottom: 8 }} />
@@ -108,17 +188,15 @@ export function Sidebar({ repos, activeRepo, isIngesting, onIngest, onSelectRepo
                     color: active ? 'var(--cyan)' : 'var(--text-2)',
                   }}
                 >
-                  <span
-                    style={{
-                      width: 5, height: 5, borderRadius: '50%', flexShrink: 0,
-                      background: active ? 'var(--cyan)' : 'var(--text-3)',
-                      boxShadow: active ? '0 0 6px var(--cyan)' : 'none',
-                    }}
+                  <Circle
+                    size={6}
+                    fill={active ? 'var(--cyan)' : 'var(--text-3)'}
+                    style={{ color: active ? 'var(--cyan)' : 'var(--text-3)', flexShrink: 0, boxShadow: active ? '0 0 6px var(--cyan)' : 'none' }}
                   />
                   <span className="mono" style={{ fontSize: 11, flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {name}
                   </span>
-                  {active && <ChevronRight size={11} />}
+                  {active && <ChevronRight size={12} style={{ color: 'var(--cyan)', flexShrink: 0 }} />}
                 </button>
               );
             })}
@@ -135,7 +213,6 @@ export function Sidebar({ repos, activeRepo, isIngesting, onIngest, onSelectRepo
   );
 }
 
-/* ─── Styles ── */
 const styles: Record<string, React.CSSProperties> = {
   sidebar: {
     width: 260,
@@ -176,28 +253,19 @@ const styles: Record<string, React.CSSProperties> = {
   divider: {
     height: 1,
     background: 'var(--border)',
-    margin: '0 0',
   },
   section: {
     padding: '14px 16px',
   },
-  inputWrapper: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
+  input: {
     background: 'var(--bg-input)',
     border: '1px solid var(--border)',
     borderRadius: 'var(--radius-sm)',
     padding: '7px 10px',
-    transition: 'border-color 0.2s',
-  },
-  input: {
-    background: 'transparent',
-    border: 'none',
-    outline: 'none',
     color: 'var(--text-1)',
     fontSize: 11,
     width: '100%',
+    outline: 'none',
   },
   btn: {
     display: 'flex',
@@ -225,6 +293,17 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     width: '100%',
     transition: 'all 0.15s',
+  },
+  smallBtn: {
+    flex: 1,
+    padding: '4px 8px',
+    borderRadius: 'var(--radius-sm)',
+    border: '1px solid var(--border)',
+    background: 'transparent',
+    color: 'var(--text-3)',
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: 10,
+    cursor: 'pointer',
   },
   emptyState: {
     display: 'flex',
