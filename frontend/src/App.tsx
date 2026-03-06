@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
-import { GraphView } from './components/GraphView';
+import { GraphView, type GraphViewHandle } from './components/GraphView';
 import { ChatPanel } from './components/ChatPanel';
 import type { GraphData, Message } from './types';
 import './index.css';
@@ -19,6 +19,31 @@ export default function App() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [showChat, setShowChat] = useState(true);
   const [graphLimit, setGraphLimit] = useState(2000);
+  const graphViewRef = useRef<GraphViewHandle>(null);
+
+  const findNodeForSource = (source: string): string | null => {
+    if (!graphData) return null;
+    const src = source.replace(/\\/g, '/');
+    // 1. Suffix match — most precise
+    let match = graphData.nodes.find(n => {
+      if (!n.id.startsWith('file:')) return false;
+      return src.endsWith(n.id.slice(5).replace(/\\/g, '/'));
+    });
+    // 2. Fallback: match by filename alone
+    if (!match) {
+      const filename = src.split('/').pop() ?? '';
+      match = graphData.nodes.find(n => {
+        if (!n.id.startsWith('file:')) return false;
+        return (n.id.split('/').pop() ?? '') === filename;
+      });
+    }
+    return match?.id ?? null;
+  };
+
+  const handleSourceClick = (source: string) => {
+    const nodeId = findNodeForSource(source);
+    if (nodeId) graphViewRef.current?.focusNode(nodeId);
+  };
 
   const handleIngest = async (url: string) => {
     setIsIngesting(true);
@@ -78,10 +103,24 @@ export default function App() {
         content: data.answer,
         sources: data.sources,
       }]);
-    } catch {
+      if (data.sources?.length > 0) {
+        // Score each source by how well its filename matches keywords in the question
+        const qNorm = question.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const sorted = [...data.sources].sort((a: string, b: string) => {
+          const stem = (s: string) => (s.split('/').pop() ?? '').toLowerCase().replace(/\.[^.]+$/, '').replace(/[^a-z0-9]/g, '');
+          const scoreA = qNorm.includes(stem(a)) ? 1 : 0;
+          const scoreB = qNorm.includes(stem(b)) ? 1 : 0;
+          return scoreB - scoreA;
+        });
+        for (const source of sorted) {
+          const nodeId = findNodeForSource(source);
+          if (nodeId) { graphViewRef.current?.focusNode(nodeId); break; }
+        }
+      }
+    } catch (err: any) {
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: '⚠ Failed to get a response. Is the backend running?',
+        content: `⚠ ${err?.message ?? 'Failed to get a response. Is the backend running?'}`,
       }]);
     } finally {
       setIsQuerying(false);
@@ -136,7 +175,7 @@ export default function App() {
 
         {/* Graph + toggle buttons */}
         <div style={{ flex: 1, height: '100%', position: 'relative', overflow: 'hidden' }}>
-          <GraphView graphData={graphData} />
+          <GraphView ref={graphViewRef} graphData={graphData} />
 
           {/* Left toggle */}
           <button
@@ -170,6 +209,7 @@ export default function App() {
               messages={messages}
               isQuerying={isQuerying}
               onQuery={handleQuery}
+              onSourceClick={handleSourceClick}
             />
           </div>
         </div>

@@ -6,9 +6,10 @@ interface ChatPanelProps {
   messages: Message[];
   isQuerying: boolean;
   onQuery: (question: string) => void;
+  onSourceClick?: (source: string) => void;
 }
 
-export function ChatPanel({ messages, isQuerying, onQuery }: ChatPanelProps) {
+export function ChatPanel({ messages, isQuerying, onQuery, onSourceClick }: ChatPanelProps) {
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -83,7 +84,15 @@ export function ChatPanel({ messages, isQuerying, onQuery }: ChatPanelProps) {
                 {msg.sources.map(s => {
                   const short = s.split('/').slice(-2).join('/');
                   return (
-                    <span key={s} style={styles.sourceChip}>
+                    <span
+                      key={s}
+                      onClick={() => onSourceClick?.(s)}
+                      style={{
+                        ...styles.sourceChip,
+                        cursor: onSourceClick ? 'pointer' : 'default',
+                      }}
+                      title={onSourceClick ? 'Click to focus in graph' : undefined}
+                    >
                       <FileCode2 size={9} />
                       <span className="mono">{short}</span>
                     </span>
