@@ -114,7 +114,7 @@ export const GraphView = forwardRef<GraphViewHandle, GraphViewProps>(
       }
     }, [data]);
 
-    const isLargeGraph = data.nodes.length > 500;
+    const isLargeGraph = data.nodes.length > 1500;
     const isVeryLargeGraph = data.nodes.length > 2000;
 
     /* Custom node: glowing sphere + floating label (full mode only) */
